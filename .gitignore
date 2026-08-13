@@ -1,0 +1,9 @@
+models/
+*.safetensors
+*.bin
+__pycache__/
+.venv/
+.idea/
+.vscode/
+Data/
+Evaluation_data/
