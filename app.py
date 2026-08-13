@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 import os
 from dotenv import load_dotenv
-from regex import re
+import re
 
 # Load environment variables from .env file
 load_dotenv()
