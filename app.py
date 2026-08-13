@@ -11,7 +11,11 @@ This file only handles UI. All ML logic lives in Components/predict.py
 import streamlit as st
 import pandas as pd
 import requests
+import os
+from dotenv import load_dotenv
 
+# Load environment variables from .env file
+load_dotenv()
 
 # ------------------------------------------------------------------
 # PAGE CONFIG (must be the first Streamlit command in the script)
@@ -71,7 +75,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-FASTAPI_URL = "http://localhost:8000"
+FASTAPI_URL = os.getenv("FASTAPI_URL")
 # ------------------------------------------------------------------
 # LOAD MODELS ONCE (cached across reruns)
 # ------------------------------------------------------------------
@@ -150,7 +154,7 @@ with tab_single:
                         continue
 
                 is_phishing = int(response["prediction"]) == 1
-                verdict_text = "⚠️ Model predicts Most Likely Phishing" if is_phishing else "✅ Model predicts Most Likely Legitimate"
+                verdict_text = "⚠️ Model predicts Likely Phishing" if is_phishing else "✅ Model predicts Likely Legitimate"
                 card_class = "phishing" if is_phishing else "legit"
 
                 confidence = response["confidence"]
