@@ -2,7 +2,6 @@ from typing import Literal
 
 from fastapi import FastAPI, Form, HTTPException, UploadFile, File
 from pydantic import BaseModel
-import re
 from Components.predict import PhishingPredictor
 import pandas as pd
 from io import StringIO
@@ -26,18 +25,8 @@ async def predict_text(text: str = Form(...), model_names: list[ModelName] = For
     if not text.strip():
         raise HTTPException(status_code=422, detail="Text must not be empty.")
 
-    if not model_names:
-        raise HTTPException(status_code=422, detail="At least one model must be selected.")
-
     if "minilm" in model_names and predictor.trainer is None:
         predictor.load_minilm()
-
-    if not text.strip():
-        raise HTTPException(
-            status_code=422,
-            detail="Text contained no usable content after cleaning "
-                   "(e.g. it was only URLs, HTML, or symbols).",
-        )
 
     preds_list: list[PhishingResponse] = []
 
@@ -79,13 +68,6 @@ async def predict_csv(
 
     if df.empty:
         raise HTTPException(status_code=400, detail="The uploaded CSV has no rows.")
-
-    if text_column not in df.columns:
-        raise HTTPException(
-            status_code=422,
-            detail=f"Column '{text_column}' not found in CSV. "
-                   f"Available columns: {', '.join(df.columns)}",
-        )
 
     df, _, _ = predictor.predict_dataframe(df, text_column, model_name)
     return df.to_dict(orient="records")
