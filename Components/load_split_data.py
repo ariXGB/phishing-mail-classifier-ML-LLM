@@ -11,6 +11,6 @@ def load_data(filename):
 def load_and_split_data(filename:str,test_size:float,random_state:int)->tuple:
 
     df = load_data(filename)
-    train, test = train_test_split(df, test_size = test_size, random_state = random_state)
+    train, test = train_test_split(df, test_size = test_size, random_state = random_state,stratify=df['label'])
 
     return train, test

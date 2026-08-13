@@ -39,7 +39,7 @@ class PhishingPredictor:
 
         path = Path(__file__).resolve().parents[1]
 
-        device = torch.device('cuda')
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.vectorizer = joblib.load(path / "models" / "vectorizer.joblib")
 
