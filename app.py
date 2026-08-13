@@ -13,24 +13,29 @@ import pandas as pd
 import requests
 import os
 from dotenv import load_dotenv
+from regex import re
 
 # Load environment variables from .env file
 load_dotenv()
 
-# ------------------------------------------------------------------
-# PAGE CONFIG (must be the first Streamlit command in the script)
-# ------------------------------------------------------------------
+def clean_text(text: str) -> str:
+
+    text = str(text).lower()
+
+    text = re.sub(r'<.*?>', ' ', text)              # remove HTML tags
+    text = re.sub(r'http\S+|www\S+', ' ', text)      # remove URLs
+    text = re.sub(r'\S+@\S+', ' ', text)             # remove email addresses
+    text = re.sub(r'[^a-z\s]', ' ', text)            # keep only letters
+    text = re.sub(r'\s+', ' ', text).strip()         # collapse extra spaces
+
+    return text
+
 st.set_page_config(
-    page_title="Phishing Detector",
+    page_title="Phishing Mail Detector",
     page_icon="🛡️",
     layout="centered",
 )
 
-
-# ------------------------------------------------------------------
-# MINIMAL CUSTOM CSS
-# Keeps the look clean without writing a full frontend framework.
-# ------------------------------------------------------------------
 st.markdown(
     """
     <style>
@@ -76,9 +81,6 @@ st.markdown(
 )
 
 FASTAPI_URL = os.getenv("FASTAPI_URL")
-# ------------------------------------------------------------------
-# LOAD MODELS ONCE (cached across reruns)
-# ------------------------------------------------------------------
 
 MODEL_LABELS = {
     "lr": "Logistic Regression",
@@ -88,16 +90,14 @@ MODEL_LABELS = {
 }
 
 
-# ------------------------------------------------------------------
-# SIDEBAR — model selection
-# ------------------------------------------------------------------
+
 st.sidebar.header("⚙️ Settings")
 st.sidebar.write("Choose one or more models to run the prediction on the input text.")
 
 selected_models = []
 for key, label in MODEL_LABELS.items():
-    # First model checked by default so a new user sees a result immediately
-    default_checked = key == "lr"
+    # model checked by default so a new user sees a result immediately
+    default_checked = key == "minilm"
     if st.sidebar.checkbox(label, value=default_checked, key=f"cb_{key}"):
         selected_models.append(key)
 
@@ -108,9 +108,6 @@ st.sidebar.caption(
 )
 
 
-# ------------------------------------------------------------------
-# MAIN HEADER
-# ------------------------------------------------------------------
 st.title("🛡️ Phishing Message Detector")
 st.write(
     "Paste an email or message below. The selected model(s) will "
@@ -120,21 +117,18 @@ st.write(
 tab_single, tab_batch = st.tabs(["✉️ Single Message", "📄 Batch (CSV)"])
 
 
-# ------------------------------------------------------------------
-# TAB 1 — SINGLE TEXT PREDICTION
-# ------------------------------------------------------------------
 with tab_single:
     text_input = st.text_area(
         "Message text",
         height=180,
         placeholder="e.g. Your account has been suspended. Click here to verify...",
     )
-
+    text_input = clean_text(text_input)
     predict_clicked = st.button("Analyze", type="primary", use_container_width=True)
 
     if predict_clicked:
         if not text_input.strip():
-            st.warning("Please enter some text first.")
+            st.warning("The entered text does not contain any usable content.")        
         elif not selected_models:
             st.warning("Please select at least one model from the sidebar.")
         else:

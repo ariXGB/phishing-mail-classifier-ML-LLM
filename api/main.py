@@ -17,20 +17,6 @@ class PhishingResponse(BaseModel):
     prediction: int
     confidence: float
 
-
-def clean_text(text: str) -> str:
-
-    text = str(text).lower()
-
-    text = re.sub(r'<.*?>', ' ', text)              # remove HTML tags
-    text = re.sub(r'http\S+|www\S+', ' ', text)      # remove URLs
-    text = re.sub(r'\S+@\S+', ' ', text)             # remove email addresses
-    text = re.sub(r'[^a-z\s]', ' ', text)            # keep only letters
-    text = re.sub(r'\s+', ' ', text).strip()         # collapse extra spaces
-
-    return text
-
-
 app = FastAPI(version="1.0", description="Phishing Email Classifier API")
 
 
@@ -46,9 +32,7 @@ async def predict_text(text: str = Form(...), model_names: list[ModelName] = For
     if "minilm" in model_names and predictor.trainer is None:
         predictor.load_minilm()
 
-    cleaned_text = clean_text(text)
-
-    if not cleaned_text:
+    if not text.strip():
         raise HTTPException(
             status_code=422,
             detail="Text contained no usable content after cleaning "
@@ -58,7 +42,7 @@ async def predict_text(text: str = Form(...), model_names: list[ModelName] = For
     preds_list: list[PhishingResponse] = []
 
     for model_name in model_names:
-        results = predictor.predict_text(cleaned_text, model_name)
+        results = predictor.predict_text(text, model_name)
         preds_list.append(
             PhishingResponse(
                 model_name=model_name,
