@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>phish-scan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0e14;
+    --panel: #0f1622;
+    --panel-2: #0c1119;
+    --border: #1e2a3d;
+    --border-soft: #16202f;
+    --text: #dce4f0;
+    --muted: #6b7a94;
+    --muted-2: #46536b;
+    --amber: #ffb020;
+    --safe: #2ee6a6;
+    --danger: #ff4757;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #101c2c 0%, var(--bg) 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding:32px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+
+  /* terminal chrome */
+  .term{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 40px 80px -40px rgba(0,0,0,0.7);
+  }
+  .term-bar{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 14px;
+    background:var(--panel-2);
+    border-bottom:1px solid var(--border);
+  }
+  .dot{width:10px;height:10px;border-radius:50%;background:#2a3648;}
+  .term-title{
+    margin-left:8px;font-family:var(--mono);font-size:12.5px;color:var(--muted);
+    letter-spacing:0.02em;
+  }
+  .term-title b{color:var(--text);font-weight:600;}
+  .live-pill{
+    margin-left:auto;
+    display:flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:11px;color:var(--muted-2);
+  }
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--muted-2);}
+  .live-pill.ok .live-dot{background:var(--safe);box-shadow:0 0 8px var(--safe);}
+  .live-pill.bad .live-dot{background:var(--danger);}
+
+  .term-body{padding:22px 22px 26px;}
+
+  h1{
+    font-family:var(--mono);
+    font-size:20px;
+    margin:2px 0 6px;
+    letter-spacing:-0.01em;
+  }
+  .sub{color:var(--muted);font-size:13.5px;line-height:1.5;margin:0 0 20px;}
+
+  /* tabs styled like terminal panes */
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+  .tab{
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--muted);
+    background:transparent;
+    border:none;
+    padding:9px 14px 10px;
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    transition:color .15s ease;
+  }
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--amber);border-bottom-color:var(--amber);}
+  .pane{display:none;}
+  .pane.active{display:block;}
+
+  label.field-label{
+    display:block;font-family:var(--mono);font-size:11px;
+    color:var(--muted);text-transform:uppercase;letter-spacing:.08em;
+    margin-bottom:8px;
+  }
+
+  textarea{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.5;
+    padding:12px 14px;
+    resize:vertical;
+    min-height:140px;
+  }
+  textarea:focus, input:focus, select:focus{
+    outline:none;border-color:var(--amber);
+    box-shadow:0 0 0 3px rgba(255,176,32,0.12);
+  }
+
+  .models{
+    display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 20px;
+  }
+  .chip{
+    font-family:var(--mono);font-size:12px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--muted);
+    padding:7px 12px;
+    border-radius:20px;
+    cursor:pointer;
+    user-select:none;
+    transition:all .15s ease;
+  }
+  .chip input{display:none;}
+  .chip.checked{
+    color:var(--bg);
+    background:var(--amber);
+    border-color:var(--amber);
+    font-weight:600;
+  }
+
+  button.run{
+    font-family:var(--mono);
+    font-size:13px;font-weight:600;
+    letter-spacing:.03em;
+    background:var(--amber);
+    color:#1a1002;
+    border:none;
+    padding:11px 20px;
+    border-radius:6px;
+    cursor:pointer;
+    display:inline-flex;align-items:center;gap:8px;
+    transition:transform .1s ease, opacity .15s ease;
+  }
+  button.run:hover{transform:translateY(-1px);}
+  button.run:disabled{opacity:.5;cursor:not-allowed;transform:none;}
+  button.run:active{transform:translateY(0);}
+
+  .scan-wrap{position:relative;overflow:hidden;border-radius:6px;}
+  .scan-line{
+    position:absolute;left:0;right:0;top:0;height:2px;
+    background:linear-gradient(90deg, transparent, var(--amber), transparent);
+    opacity:0;
+    box-shadow:0 0 12px var(--amber);
+  }
+  .scan-line.active{
+    animation: sweep 1.1s linear infinite;
+    opacity:1;
+  }
+  @keyframes sweep{
+    0%{transform:translateY(0);}
+    100%{transform:translateY(140px);}
+  }
+
+  .results{margin-top:22px;display:flex;flex-direction:column;gap:10px;}
+  .result-row{
+    display:flex;align-items:center;gap:12px;
+    padding:13px 14px;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-left:3px solid var(--muted-2);
+    border-radius:6px;
+    font-family:var(--mono);
+    font-size:13px;
+  }
+  .result-row.phishing{border-left-color:var(--danger);}
+  .result-row.legit{border-left-color:var(--safe);}
+  .result-row .model{color:var(--muted);min-width:150px;flex-shrink:0;}
+  .result-row .verdict{flex:1;font-weight:600;}
+  .result-row.phishing .verdict{color:var(--danger);}
+  .result-row.legit .verdict{color:var(--safe);}
+  .result-row .conf{color:var(--muted);font-size:12px;flex-shrink:0;}
+  .result-row .prompt{color:var(--muted-2);margin-right:2px;}
+
+  .err{
+    font-family:var(--mono);font-size:12.5px;color:var(--danger);
+    background:rgba(255,71,87,0.08);border:1px solid rgba(255,71,87,0.3);
+    padding:10px 12px;border-radius:6px;margin-top:10px;
+  }
+  .hint{font-family:var(--mono);font-size:11.5px;color:var(--muted-2);margin-top:16px;}
+
+  /* batch pane */
+  .row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px;}
+  .row > div{flex:1;min-width:200px;}
+  select, input[type=file]{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:6px;
+    color:var(--text);
+    font-family:var(--sans);
+    font-size:13.5px;
+    padding:10px 12px;
+  }
+  .dropzone{
+    border:1px dashed var(--border);
+    border-radius:6px;
+    padding:22px;
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone.drag{border-color:var(--amber);background:rgba(255,176,32,0.05);}
+  .dropzone b{color:var(--text);}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;margin-top:14px;}
+  thead th{
+    text-align:left;color:var(--muted);font-weight:500;
+    padding:8px 10px;border-bottom:1px solid var(--border);
+    text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;
+  }
+  tbody td{padding:8px 10px;border-bottom:1px solid var(--border-soft);color:var(--text);}
+  tbody tr:hover{background:rgba(255,255,255,0.02);}
+  .table-wrap{max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:6px;}
+
+  .download-btn{
+    font-family:var(--mono);font-size:12.5px;
+    color:var(--safe);background:rgba(46,230,166,0.08);
+    border:1px solid rgba(46,230,166,0.3);
+    padding:9px 16px;border-radius:6px;
+    cursor:pointer;margin-top:14px;display:inline-block;text-decoration:none;
+  }
+
+  .config{
+    margin-top:16px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .config input{
+    flex:1;background:var(--panel-2);border:1px solid var(--border);
+    border-radius:6px;color:var(--muted);font-family:var(--mono);font-size:12px;
+    padding:8px 10px;
+  }
+  .config span{font-family:var(--mono);font-size:11px;color:var(--muted-2);white-space:nowrap;}
+
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+  footer{
+    max-width:760px;margin:22px auto 0;
+    font-family:var(--mono);font-size:11px;color:var(--muted-2);
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="term">
+    <div class="term-bar">
+      <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+      <span class="term-title"><b>phish-scan</b> — email classifier</span>
+      <span class="live-pill" id="livePill"><span class="live-dot"></span><span id="liveText">checking api…</span></span>
+    </div>
+
+    <div class="term-body">
+      <h1>&gt; phishing message detector</h1>
+      <p class="sub">Paste a message or upload a CSV. Runs against your classifier models and prints a verdict per model.</p>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="single">[1] message</button>
+        <button class="tab" data-tab="batch">[2] batch csv</button>
+        <button class="tab" data-tab="config">[3] config</button>
+      </div>
+
+      <!-- SINGLE MESSAGE PANE -->
+      <div class="pane active" id="pane-single">
+        <label class="field-label">message text</label>
+        <div class="scan-wrap">
+          <textarea id="msgInput" placeholder="e.g. Your account has been suspended. Click here to verify..."></textarea>
+          <div class="scan-line" id="scanLine"></div>
+        </div>
+
+        <label class="field-label" style="margin-top:18px;">models</label>
+        <div class="models" id="modelChips"></div>
+
+        <button class="run" id="analyzeBtn">▶ analyze</button>
+
+        <div id="singleError"></div>
+        <div class="results" id="singleResults"></div>
+      </div>
+
+      <!-- BATCH PANE -->
+      <div class="pane" id="pane-batch">
+        <label class="field-label">csv file</label>
+        <div class="dropzone" id="dropzone">
+          <div id="dropzoneText">drag & drop a .csv here, or <b>click to browse</b></div>
+          <input type="file" id="fileInput" accept=".csv" style="display:none;">
+        </div>
+
+        <div id="batchConfigRow" style="display:none;">
+          <div class="row" style="margin-top:16px;">
+            <div>
+              <label class="field-label">text column</label>
+              <select id="textColumn"></select>
+            </div>
+            <div>
+              <label class="field-label">model</label>
+              <select id="batchModel"></select>
+            </div>
+          </div>
+          <button class="run" id="batchBtn">▶ run batch prediction</button>
+        </div>
+
+        <div id="batchError"></div>
+        <div id="batchOutput"></div>
+      </div>
+
+      <!-- CONFIG PANE -->
+      <div class="pane" id="pane-config">
+        <label class="field-label">fastapi base url</label>
+        <div class="config">
+          <input type="text" id="apiBase" placeholder="http://localhost:8000">
+          <span id="configStatus">not tested</span>
+        </div>
+        <p class="hint">Stored in this browser only (localStorage). Point this at wherever `main.py` (uvicorn) is running.</p>
+      </div>
+
+      <p class="hint">$ POST /predict-text · POST /predict-csv</p>
+    </div>
+  </div>
+
+  <footer>frontend talks directly to the FastAPI backend — no server-side rendering</footer>
+</div>
+
+<script>
+const MODEL_LABELS = { lr: "Logistic Regression", nb: "Naive Bayes", xgb: "XGBoost", minilm: "MiniLM" };
+const DEFAULT_BASE = "http://localhost:8000";
+
+function getBase(){
+  return localStorage.getItem("phishscan_api_base") || DEFAULT_BASE;
+}
+function setBase(v){
+  localStorage.setItem("phishscan_api_base", v);
+}
+
+// ---- tabs ----
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".pane").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("pane-" + tab.dataset.tab).classList.add("active");
+  });
+});
+
+// ---- model chips ----
+const chipWrap = document.getElementById("modelChips");
+const selectedModels = new Set(["minilm"]);
+Object.entries(MODEL_LABELS).forEach(([key, label]) => {
+  const chip = document.createElement("label");
+  chip.className = "chip" + (selectedModels.has(key) ? " checked" : "");
+  chip.innerHTML = `<input type="checkbox" ${selectedModels.has(key) ? "checked" : ""}> ${label}`;
+  chip.querySelector("input").addEventListener("change", (e) => {
+    if (e.target.checked){ selectedModels.add(key); chip.classList.add("checked"); }
+    else { selectedModels.delete(key); chip.classList.remove("checked"); }
+  });
+  chipWrap.appendChild(chip);
+});
+
+// ---- config pane ----
+const apiBaseInput = document.getElementById("apiBase");
+apiBaseInput.value = getBase();
+apiBaseInput.addEventListener("change", () => {
+  setBase(apiBaseInput.value.trim().replace(/\/$/, ""));
+  checkLive();
+});
+
+async function checkLive(){
+  const pill = document.getElementById("livePill");
+  const text = document.getElementById("liveText");
+  const configStatus = document.getElementById("configStatus");
+  try {
+    const res = await fetch(getBase() + "/docs", { method: "GET" });
+    if (res.ok){
+      pill.className = "live-pill ok";
+      text.textContent = "api online";
+      configStatus.textContent = "✓ reachable";
+    } else {
+      throw new Error("bad status");
+    }
+  } catch (e){
+    pill.className = "live-pill bad";
+    text.textContent = "api unreachable";
+    configStatus.textContent = "✗ unreachable — check config tab";
+  }
+}
+checkLive();
+
+// ---- single message ----
+const analyzeBtn = document.getElementById("analyzeBtn");
+const scanLine = document.getElementById("scanLine");
+const singleResults = document.getElementById("singleResults");
+const singleError = document.getElementById("singleError");
+
+analyzeBtn.addEventListener("click", async () => {
+  const text = document.getElementById("msgInput").value.trim();
+  singleError.innerHTML = "";
+  singleResults.innerHTML = "";
+
+  if (!text){
+    singleError.innerHTML = `<div class="err">Enter some message text first.</div>`;
+    return;
+  }
+  if (selectedModels.size === 0){
+    singleError.innerHTML = `<div class="err">Select at least one model.</div>`;
+    return;
+  }
+
+  analyzeBtn.disabled = true;
+  scanLine.classList.add("active");
+
+  try {
+    const form = new FormData();
+    form.append("text", text);
+    selectedModels.forEach(m => form.append("model_names", m));
+
+    const res = await fetch(getBase() + "/predict-text", { method: "POST", body: form });
+    if (!res.ok){
+      const detail = await res.text();
+      throw new Error(`${res.status} ${res.statusText} — ${detail}`);
+    }
+    const data = await res.json();
+
+    data.forEach(item => {
+      const isPhishing = Number(item.prediction) === 1;
+      const row = document.createElement("div");
+      row.className = "result-row " + (isPhishing ? "phishing" : "legit");
+      const confText = item.confidence != null ? `${(item.confidence * 100).toFixed(1)}%` : "n/a";
+      row.innerHTML = `
+        <span class="prompt">&gt;</span>
+        <span class="model">${MODEL_LABELS[item.model_name] || item.model_name}</span>
+        <span class="verdict">${isPhishing ? "⚠ likely phishing" : "✓ likely legitimate"}</span>
+        <span class="conf">conf ${confText}</span>
+      `;
+      singleResults.appendChild(row);
+    });
+  } catch (e){
+    singleError.innerHTML = `<div class="err">Request failed: ${e.message}</div>`;
+  } finally {
+    analyzeBtn.disabled = false;
+    scanLine.classList.remove("active");
+  }
+});
+
+// ---- batch csv ----
+const dropzone = document.getElementById("dropzone");
+const dropzoneText = document.getElementById("dropzoneText");
+const fileInput = document.getElementById("fileInput");
+const batchConfigRow = document.getElementById("batchConfigRow");
+const textColumnSelect = document.getElementById("textColumn");
+const batchModelSelect = document.getElementById("batchModel");
+const batchBtn = document.getElementById("batchBtn");
+const batchError = document.getElementById("batchError");
+const batchOutput = document.getElementById("batchOutput");
+
+let currentFile = null;
+let currentColumns = [];
+
+Object.entries(MODEL_LABELS).forEach(([key, label]) => {
+  const opt = document.createElement("option");
+  opt.value = key; opt.textContent = label;
+  batchModelSelect.appendChild(opt);
+});
+
+dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("dragover", e => { e.preventDefault(); dropzone.classList.add("drag"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("drag"));
+dropzone.addEventListener("drop", e => {
+  e.preventDefault(); dropzone.classList.remove("drag");
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", e => {
+  if (e.target.files.length) handleFile(e.target.files[0]);
+});
+
+function handleFile(file){
+  currentFile = file;
+  dropzoneText.innerHTML = `<b>${file.name}</b> selected — click to change`;
+  batchError.innerHTML = "";
+  batchOutput.innerHTML = "";
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const firstLine = e.target.result.split(/\r?\n/)[0] || "";
+    currentColumns = firstLine.split(",").map(c => c.trim().replace(/^"|"$/g, ""));
+    textColumnSelect.innerHTML = "";
+    currentColumns.forEach(col => {
+      const opt = document.createElement("option");
+      opt.value = col; opt.textContent = col;
+      textColumnSelect.appendChild(opt);
+    });
+    batchConfigRow.style.display = "block";
+  };
+  reader.readAsText(file);
+}
+
+batchBtn.addEventListener("click", async () => {
+  batchError.innerHTML = "";
+  batchOutput.innerHTML = "";
+  if (!currentFile){
+    batchError.innerHTML = `<div class="err">Upload a CSV first.</div>`;
+    return;
+  }
+
+  batchBtn.disabled = true;
+  batchBtn.textContent = "▶ scoring rows…";
+
+  try {
+    const form = new FormData();
+    form.append("file", currentFile);
+    form.append("model_name", batchModelSelect.value);
+    form.append("text_column", textColumnSelect.value);
+
+    const res = await fetch(getBase() + "/predict-csv", { method: "POST", body: form });
+    if (!res.ok){
+      const detail = await res.text();
+      throw new Error(`${res.status} ${res.statusText} — ${detail}`);
+    }
+    const rows = await res.json();
+    renderBatchResults(rows);
+  } catch (e){
+    batchError.innerHTML = `<div class="err">Request failed: ${e.message}</div>`;
+  } finally {
+    batchBtn.disabled = false;
+    batchBtn.textContent = "▶ run batch prediction";
+  }
+});
+
+function renderBatchResults(rows){
+  if (!rows.length){
+    batchOutput.innerHTML = `<div class="err">No rows returned.</div>`;
+    return;
+  }
+  const cols = Object.keys(rows[0]);
+
+  let html = `<div style="font-family:var(--mono);font-size:12.5px;color:var(--safe);margin-top:14px;">✓ scored ${rows.length} rows</div>`;
+  html += `<div class="table-wrap"><table><thead><tr>`;
+  cols.forEach(c => html += `<th>${c}</th>`);
+  html += `</tr></thead><tbody>`;
+  rows.forEach(r => {
+    html += "<tr>" + cols.map(c => `<td>${r[c] ?? ""}</td>`).join("") + "</tr>";
+  });
+  html += `</tbody></table></div>`;
+  batchOutput.innerHTML = html;
+
+  const csvContent = [cols.join(",")]
+    .concat(rows.map(r => cols.map(c => JSON.stringify(r[c] ?? "")).join(",")))
+    .join("\n");
+  const blob = new Blob([csvContent], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "phishing_predictions.csv";
+  link.className = "download-btn";
+  link.textContent = "⬇ download results as csv";
+  batchOutput.appendChild(link);
+}
+</script>
+</body>
+</html>
