@@ -1,6 +1,7 @@
 from typing import Literal
 
 from fastapi import FastAPI, Form, HTTPException, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from Components.predict import PhishingPredictor
 import pandas as pd
@@ -18,6 +19,13 @@ class PhishingResponse(BaseModel):
 
 app = FastAPI(version="1.0", description="Phishing Email Classifier API")
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/predict-text", response_model=list[PhishingResponse])
 async def predict_text(text: str = Form(...), model_names: list[ModelName] = Form(...)):
