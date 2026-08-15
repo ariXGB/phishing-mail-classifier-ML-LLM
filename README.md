@@ -53,7 +53,7 @@ phishing-mail-classifier/
 │
 ├── Data/                      # datasets, raw and cleaned
 ├── models/                    # saved model files (.joblib + the MiniLM checkpoint)
-└── Evaluation\_data/           # best\_params.json, eval metrics, test metrics
+└── Evaluation_data/           # best\_params.json, eval metrics, test metrics
 ```
 
 Training and serving are kept pretty separate on purpose. `train\_models.py` spits out model files, and `predict.py` just picks up whatever's sitting in `models/` and runs with it. So retraining a model doesn't mean touching a single line of API code — you just drop the new file in and it's live. `project\_paths.py` walks up from wherever it's imported until it finds the `models/` and `Data/` folders, so every script resolves the same project root without hardcoding how many directories deep it happens to sit.
