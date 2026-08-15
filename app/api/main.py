@@ -3,7 +3,7 @@ from typing import Literal
 from fastapi import FastAPI, Form, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from Components.predict import PhishingPredictor
+from app.Components.predict.predict import PhishingPredictor
 import pandas as pd
 from io import StringIO
 
@@ -22,7 +22,7 @@ app = FastAPI(version="1.0", description="Phishing Email Classifier API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

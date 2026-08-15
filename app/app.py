@@ -13,22 +13,8 @@ import pandas as pd
 import requests
 import os
 from dotenv import load_dotenv
-import re
 
-# Load environment variables from .env file
 load_dotenv()
-
-def clean_text(text: str) -> str:
-
-    text = str(text).lower()
-
-    text = re.sub(r'<.*?>', ' ', text)              # remove HTML tags
-    text = re.sub(r'http\S+|www\S+', ' ', text)      # remove URLs
-    text = re.sub(r'\S+@\S+', ' ', text)             # remove email addresses
-    text = re.sub(r'[^a-z\s]', ' ', text)            # keep only letters
-    text = re.sub(r'\s+', ' ', text).strip()         # collapse extra spaces
-
-    return text
 
 st.set_page_config(
     page_title="Phishing Mail Detector",
@@ -39,11 +25,9 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Overall font + spacing */
     .main {
         padding-top: 1.5rem;
     }
-    /* Result card */
     .result-card {
         padding: 1rem 1.2rem;
         border-radius: 10px;
@@ -96,7 +80,6 @@ st.sidebar.write("Choose one or more models to run the prediction on the input t
 
 selected_models = []
 for key, label in MODEL_LABELS.items():
-    # model checked by default so a new user sees a result immediately
     default_checked = key == "minilm"
     if st.sidebar.checkbox(label, value=default_checked, key=f"cb_{key}"):
         selected_models.append(key)
@@ -123,12 +106,11 @@ with tab_single:
         height=180,
         placeholder="e.g. Your account has been suspended. Click here to verify...",
     )
-    text_input = clean_text(text_input)
     predict_clicked = st.button("Analyze", type="primary", use_container_width=True)
 
     if predict_clicked:
         if not text_input.strip():
-            st.warning("The entered text does not contain any usable content.")        
+            st.warning("The entered text does not contain any usable content.")
         elif not selected_models:
             st.warning("Please select at least one model from the sidebar.")
         else:
@@ -141,10 +123,15 @@ with tab_single:
                         response = requests.post(
                             f"{FASTAPI_URL}/predict-text",
                             data={"text": text_input, "model_names": [model_key]},
-                        ).json()[0]
+                        )
+                        response.raise_for_status()
+                        response = response.json()[0]
 
                     except requests.RequestException as e:
                         st.error(f"Error occurred while fetching prediction for {MODEL_LABELS[model_key]}: {e}")
+                        continue
+                    except (ValueError, IndexError, KeyError) as e:
+                        st.error(f"Unexpected response from server for {MODEL_LABELS[model_key]}: {e}")
                         continue
 
                 is_phishing = int(response["prediction"]) == 1
@@ -185,8 +172,6 @@ with tab_batch:
 
         text_column = st.selectbox("Which column contains the message text?", df.columns)
 
-        # Batch mode only makes sense with one model at a time,
-        # since predict_dataframe() is designed per-model.
         batch_model = st.selectbox(
             "Model to use for batch prediction",
             options=list(MODEL_LABELS.keys()),
@@ -196,6 +181,7 @@ with tab_batch:
         if st.button("Run Batch Prediction", type="primary"):
 
             with st.spinner("Scoring all rows..."):
+                progress = False
                 try:
                     response = requests.post(
                         f"{FASTAPI_URL}/predict-csv",
@@ -214,14 +200,12 @@ with tab_batch:
 
                     response.raise_for_status()
 
-                    # Convert the result back to a DataFrame for display and download
                     result_df = pd.DataFrame(response.json())
-                    progress=True
+                    progress = True
 
                 except requests.RequestException as e:
-                    progress=False
                     st.error(f"Error occurred while fetching batch prediction: {e}")
-                    
+
             if progress:
                 st.success(f"Done! Scored {len(result_df)} rows.")
                 st.dataframe(result_df, use_container_width=True)

@@ -1,12 +1,12 @@
 import pandas as pd
-from predict import PhishingPredictor
-from pathlib import Path
-from train_models import calculate_metrics
+from Components.predict.predict import PhishingPredictor
+from Components.project_paths import PROJECT_ROOT
+from Components.train.train_models import calculate_metrics
 import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
-path = Path(__file__).resolve().parents[1]
+path = PROJECT_ROOT
 predictor = PhishingPredictor()
 
 test_df = pd.read_csv(path / "Data" / "test_dataset_cleaned.csv")

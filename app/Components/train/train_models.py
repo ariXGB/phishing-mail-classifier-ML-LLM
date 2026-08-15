@@ -5,7 +5,6 @@ from sklearn.naive_bayes import MultinomialNB
 from transformers import AutoModelForSequenceClassification, TrainingArguments, Trainer
 from xgboost import XGBClassifier
 import json
-from pathlib import Path
 import torch
 import joblib
 import pandas as pd
@@ -20,11 +19,12 @@ torch.manual_seed(SEED)
 if torch.cuda.is_available():
     torch.cuda.manual_seed_all(SEED)
 
-from preprocess_data import preprocess_data
+from Components.utilities.preprocess_data import preprocess_data
+from Components.project_paths import PROJECT_ROOT
 
-path = Path(__file__).resolve().parents[1]
+path = PROJECT_ROOT
 
-with open(f"{path}/Evaluation_data/best_params.json", "r") as f:
+with open(path/ "Evaluation_data"/ "best_params.json", "r") as f:
     best_params = json.load(f)
 
 models = {

@@ -37,7 +37,7 @@ class PhishingPredictor:
 
     def __init__(self,loadBert=True):
 
-        path = Path(__file__).resolve().parents[1]
+        path = Path(__file__).resolve().parents[3]
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
