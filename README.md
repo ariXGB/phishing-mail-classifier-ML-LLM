@@ -30,24 +30,33 @@ Then a FastAPI backend serves predictions — one endpoint for a single message,
 ## Project layout
 
 ```
-project/
+phishing-mail-classifier/
 │
-├── main.py                    # FastAPI backend
-├── app.py                     # Streamlit frontend
-│
-├── Components/
-│   ├── load\_split\_data.py     # loads the csv, splits train/test
-│   ├── preprocess\_data.py     # TF-IDF + tokenization
-│   ├── predict.py             # PhishingPredictor - does the actual inference
-│   ├── train\_models.py        # trains all four models
-│   └── test\_models.py         # evaluates trained models on held-out data
+├── app/
+│   ├── app.py                      # Streamlit frontend
+│   │
+│   ├── api/
+│   │   ├── main.py                 # FastAPI backend
+│   │   │
+│   │   └── Components/
+│   │       ├── predict/
+│   │       │   └── predict.py      # PhishingPredictor - does the actual inference
+│   │       ├── train/
+│   │       │   └── train\_models.py # trains all four models
+│   │       ├── utilities/
+│   │       │   ├── load\_split\_data.py  # loads the csv, splits train/test
+│   │       │   └── preprocess\_data.py  # TF-IDF + tokenization
+│   │       └── project\_paths.py    # finds the project root from wherever it's called
+│   │
+│   └── test/
+│       └── test\_models.py          # evaluates trained models on held-out data
 │
 ├── Data/                      # datasets, raw and cleaned
 ├── models/                    # saved model files (.joblib + the MiniLM checkpoint)
 └── Evaluation\_data/           # best\_params.json, eval metrics, test metrics
 ```
 
-Training and serving are kept pretty separate on purpose. `train\_models.py` spits out model files, and `predict.py` just picks up whatever's sitting in `models/` and runs with it. So retraining a model doesn't mean touching a single line of API code — you just drop the new file in and it's live.
+Training and serving are kept pretty separate on purpose. `train\_models.py` spits out model files, and `predict.py` just picks up whatever's sitting in `models/` and runs with it. So retraining a model doesn't mean touching a single line of API code — you just drop the new file in and it's live. `project\_paths.py` walks up from wherever it's imported until it finds the `models/` and `Data/` folders, so every script resolves the same project root without hardcoding how many directories deep it happens to sit.
 
 ## Stack
 
@@ -66,7 +75,7 @@ pip install -r requirements.txt
 **Train the models** (skip this if you're just using the models already sitting in `models/`)
 
 ```bash
-python Components/train\_models.py
+python app/api/Components/train/train\_models.py
 ```
 
 This trains all four and logs the numbers to `Evaluation\_data/eval\_metrics.csv`. Heads up — the MiniLM fine-tune wants a GPU. It'll technically run on CPU too, it'll just take a while, so maybe go make a coffee.
@@ -74,7 +83,7 @@ This trains all four and logs the numbers to `Evaluation\_data/eval\_metrics.csv
 **Check performance on the test set**
 
 ```bash
-python Components/test\_models.py
+python app/test/test\_models.py
 ```
 
 Runs everything against the held-out data and writes `Evaluation\_data/test\_metrics.csv`.
@@ -82,7 +91,7 @@ Runs everything against the held-out data and writes `Evaluation\_data/test\_met
 **Start the backend**
 
 ```bash
-uvicorn main:app --reload
+uvicorn app.api.main:app --reload
 ```
 
 `http://localhost:8000`, docs at `/docs`.
@@ -90,7 +99,7 @@ uvicorn main:app --reload
 **Start the frontend**
 
 ```bash
-streamlit run app.py
+streamlit run app/app.py
 ```
 
 `http://localhost:8501` — paste a message in, pick your model(s), hit Analyze. Or go to the batch tab and throw a CSV at it if you've got a whole pile of messages to check.
@@ -114,4 +123,8 @@ And the metrics function is the single source of truth everywhere — training, 
 ## Why I built it this way
 
 I got tired of the version of this project where you train one model, get a suspiciously good number, and never actually interrogate whether it's a good approach or just a lucky dataset. Comparing four genuinely different modeling philosophies — sparse vectors vs. gradient boosting vs. an actual transformer — on identical data with identical scoring felt like a much more honest way to learn what's actually going on, instead of pretending one model is "the answer."
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
